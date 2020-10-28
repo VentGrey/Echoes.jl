@@ -3,7 +3,7 @@ using Markdown: MD
 
 @testset "ReturnTypes" begin
 
-    using CpuId
+    using Echoes
 
     # Moved upwards temporarily for better diagnostics
     println(cpuinfo())
@@ -15,26 +15,26 @@ using Markdown: MD
     # Thus, let's simply check whether the result types are correct,
     # which also fails if a test throws.
 
-    @test isa( CpuId.cpuid(), NTuple{4, UInt32} )
-    @test isa( CpuId.cpuid(0x00), NTuple{4, UInt32} )
-    @test isa( CpuId.cpuid(0x00, 0x00), NTuple{4, UInt32} )
+    @test isa( Echoes.Echoes(), NTuple{4, UInt32} )
+    @test isa( Echoes.Echoes(0x00), NTuple{4, UInt32} )
+    @test isa( Echoes.Echoes(0x00, 0x00), NTuple{4, UInt32} )
 
     # Test the low-level cpufeature querying function
-    @test isa( CpuId.cpufeature(CpuId.SSE)      , Bool )
-    @test isa( CpuId.cpufeature(:SSE)           , Bool )
-    @test isa( CpuId.cpufeaturedesc(:SSE)       , String )
-    @test isa( CpuId.cpufeatures()              , Vector{Symbol} )
+    @test isa( Echoes.cpufeature(Echoes.SSE)      , Bool )
+    @test isa( Echoes.cpufeature(:SSE)           , Bool )
+    @test isa( Echoes.cpufeaturedesc(:SSE)       , String )
+    @test isa( Echoes.cpufeatures()              , Vector{Symbol} )
 
-    @test_throws UndefVarError CpuId.cpufeature(:UNKNOWNFEATURE)
-    @test CpuId.cpufeaturedesc(:UNKNOWNFEATURE) ==
+    @test_throws UndefVarError Echoes.cpufeature(:UNKNOWNFEATURE)
+    @test Echoes.cpufeaturedesc(:UNKNOWNFEATURE) ==
                             "Unknown feature, no description available!"
 
     # LLVM eliminates calls to hasleaf(...) if the executing machine supports
     # that leaf.  Thus test whether the reverse actually throws...
     function test_nonexisting_leaf()
         leaf = 0x8000_008f
-        CpuId.hasleaf(leaf) || CpuId._throw_unsupported_leaf(leaf)
-        CpuId.cpuid(leaf)
+        Echoes.hasleaf(leaf) || Echoes._throw_unsupported_leaf(leaf)
+        Echoes.Echoes(leaf)
     end
     @test_throws ErrorException test_nonexisting_leaf()
 
@@ -49,10 +49,10 @@ using Markdown: MD
     @test isa( cpubrand()             , String )
     @test isa( cpumodel()             , Dict )
     @test isa( cpuvendor()            , Symbol )
-    @test isa( CpuId.cpuvendorstring(), String )
+    @test isa( Echoes.cpuvendorstring(), String )
     @test isa( hypervised()           , Bool )
     @test isa( hvvendor()             , Symbol )
-    @test isa( CpuId.hvvendorstring() , String )
+    @test isa( Echoes.hvvendorstring() , String )
     @test isa( hvversion()            , Dict{Symbol,Any} )
     @test isa( hypervised()           , Bool )
     @test isa( simdbits()             , Integer )
@@ -78,7 +78,7 @@ using Markdown: MD
 
     # Check if trailing null characters are correctly identified
     # as hypervisor vendor KVM
-    @test get( CpuId._cpuid_vendor_id, "KVMKVMKVM\0\0\0", :Unknown) === :KVM
+    @test get( Echoes._Echoes_vendor_id, "KVMKVMKVM\0\0\0", :Unknown) === :KVM
 
     # If we're on Linux, then also dump /proc/cpuinfo for comparison when on a
     # remote CI, but only print data of the first CPU.
@@ -86,41 +86,41 @@ using Markdown: MD
 
 end
 
-# Dump the cpuid table of the executing CPU
+# Dump the Echoes table of the executing CPU
 include("mock.jl")
 include("mockdb.jl")
 
-dump_cpuid_table() ; flush(stdout) ; flush(stderr)
+dump_Echoes_table() ; flush(stdout) ; flush(stderr)
 
-print("\n\n-----\nMocking CpuId\n-----\n\n")
+print("\n\n-----\nMocking Echoes\n-----\n\n")
 flush(stdout) ; flush(stderr)
 
-# Run the known cpuid records
+# Run the known Echoes records
 @testset "Mocking" begin
     for i in 1:length(_mockdb)
-        # temporarily replace the low-level cpuid function with known records
+        # temporarily replace the low-level Echoes function with known records
         eval(quote
             @testset "Mocked #$($i) $(strip(cpubrand()))" begin
-                mock_cpuid($i)
+                mock_Echoes($i)
                 flush(stdout) ; flush(stderr)
                 @test isa( cpubrand()       , String )
                 @test isa( cpuinfo()        , MD )
                 @test isa( cpufeaturetable(), MD )
                 @test isa( hvinfo()         , MD )
-                println("Tested recorded cpuid table #",$i," for '", strip(cpubrand()), "'")
+                println("Tested recorded Echoes table #",$i," for '", strip(cpubrand()), "'")
 
                 for (fns, res) in last(_mockdb[$i])
                     if isa(res, Tuple) && length(res) > 0 && first(res) === :broken
-                        @test_broken getfield(CpuId, fns)() == last(res)
+                        @test_broken getfield(Echoes, fns)() == last(res)
                     else
-                        @test getfield(CpuId, fns)() == res
+                        @test getfield(Echoes, fns)() == res
                     end
                 end
 
             end
         end)
 
-        #dump_cpuid_table()
+        #dump_Echoes_table()
         flush(stdout) ; flush(stderr)
     end
 end

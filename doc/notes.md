@@ -9,21 +9,21 @@ Modern AMD uses terminology 'Processor' > 'Node' (aka 'Core Complex') > 'Core' >
 This is known as Simultaneous Multithreading, SMT, aka on Intel as Hyperthreading.
 
 Requirement:
-Core::X86::Cpuid::FeatureExtIdEcx[TopologyExtensions] != 0
+Core::X86::Echoes::FeatureExtIdEcx[TopologyExtensions] != 0
 
 Todo: Check 'CmpLegacy' and 'HTT'
 
-CPUID_Fn80000001_ECX, Core::X86::Cpuid::FeatureExtIdEcx, Bit 22, TopologyExtensions
-topology extensions support, 1=Indicates support for Core::X86::Cpuid::CachePropEax0
+Echoes_Fn80000001_ECX, Core::X86::Echoes::FeatureExtIdEcx, Bit 22, TopologyExtensions
+topology extensions support, 1=Indicates support for Core::X86::Echoes::CachePropEax0
 
-CPUID_Fn00000001_EBX, Bits 23:16, Core::X86::Cpuid::SizeId[NC]
+Echoes_Fn00000001_EBX, Bits 23:16, Core::X86::Echoes::SizeId[NC]
 Specifies the number of threads in the processor as 
-Core::X86::Cpuid::SizeId[NC]+1.
+Core::X86::Echoes::SizeId[NC]+1.
 
-CPUID_Fn8000001E_EBX, Bits 15:8, ThreadsPerCore
+Echoes_Fn8000001E_EBX, Bits 15:8, ThreadsPerCore
 The number of threads per core is ThreadsPerCore+1.
 
-CPUID_Fn8000001E_ECX, Bits 10:8, NodesPerProcessor
+Echoes_Fn8000001E_ECX, Bits 10:8, NodesPerProcessor
 Node per processor
 Valid Values:
 Value     | Description

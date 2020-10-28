@@ -1,26 +1,26 @@
-#=--- CpuId / CpuInstructions.jl ------------------------------------------=#
+#=--- Echoes / CpuInstructions.jl ------------------------------------------=#
 
 """
 # Module 'CpuInstructions'
 
-The module 'CpuInstructions' is part of the package 'CpuId', and provides a
+The module 'CpuInstructions' is part of the package 'Echoes', and provides a
 selection of wrapped low-level assembly functions to diagnose potential
 computational efficiency issues.
 
-Though primarily intended as a helper module to 'CpuId', the functions may be
+Though primarily intended as a helper module to 'Echoes', the functions may be
 used directly in other code e.g. for benchmarking purposes.  Just include the
 file directly, or copy & paste.
 """
 module CpuInstructions
 
-export cpuid, rdtsc, rdtscp
+export Echoes, rdtsc, rdtscp
 
 using Base: llvmcall
 
 """
-    cpuid( [leaf], [subleaf]) ::NTuple{4, UInt32}
+    Echoes( [leaf], [subleaf]) ::NTuple{4, UInt32}
 
-Invoke the cpu's hardware instruction `cpuid` with the values of the arguments
+Invoke the cpu's hardware instruction `Echoes` with the values of the arguments
 stored as registers *EAX = leaf*, *ECX = subleaf*, respectively. Returns a
 tuple of the response of registers EAX, EBX, ECX, EDX.  Input values may be
 given as individual `UInt32` arguments, or converted from any `Integer`.
@@ -29,17 +29,17 @@ Unspecified arguments are assumed zero.
 This function is primarily intended as a low-level interface to the CPU.
 
 Note: Expected to work on all CPUs that implement the assembly instruction
-      `cpuid`, which is at least Intel and AMD.
+      `Echoes`, which is at least Intel and AMD.
 """
-function cpuid end
+function Echoes end
 
-# Low level cpuid call, taking eax=leaf and ecx=subleaf,
+# Low level Echoes call, taking eax=leaf and ecx=subleaf,
 # returning eax, ebx, ecx, edx as NTuple(4,UInt32)
-@noinline cpuid_llvm(leaf::UInt32, subleaf::UInt32) =
+@noinline Echoes_llvm(leaf::UInt32, subleaf::UInt32) =
     llvmcall("""
         ; leaf = %0, subleaf = %1, %2 is some label
-        ; call 'cpuid' with arguments loaded into registers EAX = leaf, ECX = subleaf
-        %3 = tail call { i32, i32, i32, i32 } asm sideeffect "cpuid",
+        ; call 'Echoes' with arguments loaded into registers EAX = leaf, ECX = subleaf
+        %3 = tail call { i32, i32, i32, i32 } asm sideeffect "Echoes",
             "={ax},={bx},={cx},={dx},{ax},{cx},~{dirflag},~{fpsr},~{flags}"
             (i32 %0, i32 %1) #2
         ; retrieve the result values and convert to vector [4 x i32]
@@ -59,11 +59,11 @@ function cpuid end
     , leaf, subleaf)
 
 # Convenience function allowing passing other than UInt32 values
-function cpuid(leaf=0, subleaf=0)
+function Echoes(leaf=0, subleaf=0)
     # for some reason, we need a dedicated local
     # variable of UInt32 for llvmcall to succeed
     l, s = UInt32(leaf), UInt32(subleaf)
-    cpuid_llvm(l, s) ::NTuple{4,UInt32}
+    Echoes_llvm(l, s) ::NTuple{4,UInt32}
 end
 
 @inline rdtsc() =

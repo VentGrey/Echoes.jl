@@ -1,4 +1,4 @@
-The *CpuId* package is licensed under the MIT "Expat" License:
+The *Echoes* package is licensed under the MIT "Expat" License:
 
 > Copyright (c) 2016-2017 Markus J. Weber
 >

@@ -1,4 +1,4 @@
-#=--- CpuId / test / mockdb.jl --------------------------------------------=#
+#=--- Echoes / test / mockdb.jl --------------------------------------------=#
 
 ####################################################################################
 #
@@ -410,7 +410,7 @@ push!( _mockdb, (Dict(
 # initial apicid    : 0
 # fpu               : yes
 # fpu_exception     : yes
-# cpuid level       : 5
+# Echoes level       : 5
 # wp                : yes
 # flags             : fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov
 #                       pat pse36 clflush mmx fxsr sse sse2 ht syscall nx rdtscp lm
@@ -555,7 +555,7 @@ push!( _mockdb, (Dict(
     :cpuarchitecture => :Bulldozer, # :Excavator
     :cpucores        => 4,
     :cputhreads      => 4,  # plus 6 GPU cores
-    :cachesize       => (32768,), # This is correct since the subleaf 2 is missing of the cpuid dump.
+    :cachesize       => (32768,), # This is correct since the subleaf 2 is missing of the Echoes dump.
     :cachelinesize   => 64,
     :simdbits        => 256,
   )))

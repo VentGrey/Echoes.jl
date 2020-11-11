@@ -29,7 +29,7 @@ include("cpufeature.jl")
 # The low-level assembly functions are confined to a helper module.
 include("CpuInstructions.jl")
 
-using .CpuInstructions: Echoes, rdtsc, rdtscp
+using .CpuInstructions: Echo, rdtsc, rdtscp
 
 
 """
@@ -37,7 +37,7 @@ Helper function, tagged noinline to not have detrimental effect on performance.
 """
 function _throw_unsupported_leaf(leaf)
     @_noinline_meta
-    error("This CPU does not provide information on Echoes leaf 0x$(string(leaf, base=16, pad=8)).")
+    error("This CPU does not provide information on Echo leaf 0x$(string(leaf, base=16, pad=8)).")
 end
 
 
@@ -45,7 +45,7 @@ end
     hasleaf(leaf::UInt32) ::Bool
 
 Helper function (not exported) to test whether the CPU claims to provide the
-given leaf in a `Echoes` instruction call.
+given leaf in a `Echo` instruction call.
 
 Note: It appears LLVM really know its gear: If this function is inlined, and
       just-in-time compiled, then this test is eliminated completly if the
@@ -53,7 +53,7 @@ Note: It appears LLVM really know its gear: If this function is inlined, and
 """
 function hasleaf(leaf::UInt32) ::Bool
     @_inline_meta
-    eax, ebx, ecx, edx = Echoes(leaf & 0xffff_0000)
+    eax, ebx, ecx, edx = Echo(leaf & 0xffff_0000)
     eax >= leaf
 end
 
@@ -71,7 +71,7 @@ Note, the TSC runs at a constant rate if `hasfeature(:TSCINV)==true`;
 otherwise, it is tied to the current CPU clock frequency.
 
 Hint: This function is extremely efficient when inlined into your own code.
-      Convince yourself by typing `@code_native Echoes.cpucycle()`.
+      Convince yourself by typing `@code_native Echo.cpucycle()`.
       To use this for benchmarking, simply subtract the results of two calls.
       The result is the actual CPU clock cycles spent, independent of the
       current (and possible non-constant) CPU clock frequency.
@@ -106,7 +106,7 @@ function cpumodel() ::Dict{Symbol, UInt8}
     #  Processor:  12:13
     #  Ext.Model:  16:19
     #  Ext.Family: 20:27
-    eax, ebx, ecx, edx = Echoes(0x01)
+    eax, ebx, ecx, edx = Echo(0x01)
     Dict( :Family    => UInt8(((eax & 0x0000_0f00) >> 8)
                              +((eax & 0x0ff0_0000) >> (20-4)))
         , :Model     => UInt8(((eax & 0x0000_00f0) >> 4)
@@ -128,7 +128,7 @@ the hypervisor is free to decide which information to pass.
 """
 function hypervised() ::Bool
     # alternative: 0x8000_000a, eax bit 8 set if hv present.
-    eax, ebx, ecx, edx = Echoes(0x0000_0001)
+    eax, ebx, ecx, edx = Echo(0x0000_0001)
     ((ecx >> 31) & one(UInt32)) != zero(UInt32)
 end
 
@@ -137,12 +137,12 @@ end
     hvvendorstring()
 
 Determine the hypervisor vendor string as provided by the cpu by executing a
-`Echoes` instruction.  Note, this string has a fixed length of 12 characters.
+`Echo` instruction.  Note, this string has a fixed length of 12 characters.
 Use `hvvendor()` if you prefer getting a parsed Julia symbol.  If the CPU is
 not running a hypervisor, a string of undefined content will be returned.
 """
 function hvvendorstring()
-    eax, ebx, ecx, edx = Echoes(0x4000_0000)
+    eax, ebx, ecx, edx = Echo(0x4000_0000)
     String( reinterpret(UInt8, [ebx, ecx, edx] ) )
 end
 
@@ -172,13 +172,13 @@ function hvversion()
 
         leaf = 0x4000_0001
         if hasleaf(leaf)
-            eax, ebx, ecx, edx = Echoes(leaf)
+            eax, ebx, ecx, edx = Echo(leaf)
             eax != 0x00 && (d[:signature] = String( reinterpret(UInt8, ( [eax, ] ))))
         end
 
         leaf = 0x4000_0002
         if hasleaf(leaf)
-            eax, ebx, ecx, edx = Echoes(leaf)
+            eax, ebx, ecx, edx = Echo(leaf)
             if eax != 0x00 && ebx != 0x00
                 d[:version] = VersionNumber(
                                     Int((ebx >> 16) & 0xffff),
@@ -198,11 +198,11 @@ function hvversion()
     elseif vendor == :Xen
 
         # Xen is specified e.g. here
-        # https://xenbits.xen.org/docs/unstable/hypercall/x86_64/include,public,arch-x86,Echoes.h.html
+        # https://xenbits.xen.org/docs/unstable/hypercall/x86_64/include,public,arch-x86,Echo.h.html
 
         leaf = 0x4000_0001
         if hasleaf(leaf)
-            eax, ebx, ecx, edx = Echoes(leaf)
+            eax, ebx, ecx, edx = Echo(leaf)
             d[:version] = VersionNumber(Int((eax >> 16) & 0xffff), Int(eax & 0xffff))
         end
 
@@ -216,7 +216,7 @@ function hvversion()
 
         leaf = 0x4000_0010
         if hasleaf(leaf)
-            eax, ebx, ecx, edx = Echoes(leaf)
+            eax, ebx, ecx, edx = Echo(leaf)
             eax != 0x00 && (d[:tscfreq] = Int(eax))
             ebx != 0x00 && (d[:busfreq] = Int(ebx))
         end
@@ -270,17 +270,17 @@ end
     cpuvendorstring()
 
 Determine the cpu vendor string as provided by the cpu by executing a
-`Echoes` instruction.  Note, this string has a fixed length of 12 characters.
+`Echo` instruction.  Note, this string has a fixed length of 12 characters.
 Use `cpuvendor()` if you prefer getting a parsed Julia symbol.
 """
 function cpuvendorstring()
-    eax, ebx, ecx, edx = Echoes(0x00)
+    eax, ebx, ecx, edx = Echo(0x00)
     String( reinterpret(UInt8, [ebx, edx, ecx] ) )
 end
 
 
-"Map vendor string of type 'char[12]' provided by `Echoes, eax=0x0` to a Julia symbol."
-const _Echoes_vendor_id = Dict(
+"Map vendor string of type 'char[12]' provided by `Echo, eax=0x0` to a Julia symbol."
+const _Echo_vendor_id = Dict(
     "AMDisbetter!" => :AMD,
     "AuthenticAMD" => :AMD,
     "CentaurHauls" => :Centaur,
@@ -311,7 +311,7 @@ Determine the cpu vendor as a Julia symbol.  In case the CPU vendor
 identification is unknown `:Unknown` is returned (then also consider raising
 an issue on Github).
 """
-cpuvendor() = get(_Echoes_vendor_id, cpuvendorstring(), :Unknown)
+cpuvendor() = get(_Echo_vendor_id, cpuvendorstring(), :Unknown)
 
 
 """
@@ -322,7 +322,7 @@ running a hypervisor. In case the hypervisor vendor identification is unknown
 `:Unknown` is returned (then also consider raising an issue on Github).
 """
 hvvendor() = hypervised() ?
-                get(_Echoes_vendor_id, hvvendorstring(), :Unknown) :
+                get(_Echo_vendor_id, hvvendorstring(), :Unknown) :
                 :NoHypervisor
 
 
@@ -330,7 +330,7 @@ hvvendor() = hypervised() ?
     cpubrand()
 
 Determine the cpu brand as a string as provided by the CPU through executing
-the `Echoes` instruction.  This function throws if no CPU brand information is
+the `Echo` instruction.  This function throws if no CPU brand information is
 available form the CPU, which should never be the case on recent hardware.
 """
 function cpubrand() ::String
@@ -340,7 +340,7 @@ function cpubrand() ::String
 
     # Extract the information from leaf 0x8000_0002..0x8000_0004
     rstrip( String( reinterpret(UInt8,
-                    [Echoes(0x8000_0002)..., Echoes(0x8000_0003)..., Echoes(0x8000_0004)..., 0x0000_0000] )
+                    [Echo(0x8000_0002)..., Echo(0x8000_0003)..., Echo(0x8000_0004)..., 0x0000_0000] )
                   )
           , '\0')
 end
@@ -350,7 +350,7 @@ end
     cpuarchitecture()
 
 This function tries to infer the CPU microarchitecture with a call to the
-`Echoes` instruction.  For now, only Intel CPUs are suppored according to the
+`Echo` instruction.  For now, only Intel CPUs are suppored according to the
 following table.  Others are identified as `:Unknown`.
 
 Table C-1 of Intel's Optimization Reference Manual:
@@ -431,7 +431,7 @@ function cachelinesize() ::Int
     leaf = 0x8000_0006
     hasleaf(leaf) || return 0
 
-    eax, ebx, ecx, edx = Echoes(leaf)
+    eax, ebx, ecx, edx = Echo(leaf)
     (ecx & 0xff) % Int
 end
 
@@ -440,7 +440,7 @@ end
     simdbytes()
 
 Query the CPU on the maximum supported SIMD vector size in bytes, or
-`sizeof(Int)` if no SIMD capability is reported by the invoked `Echoes`
+`sizeof(Int)` if no SIMD capability is reported by the invoked `Echo`
 instruction.
 """
 function simdbytes() ::Int
@@ -449,13 +449,13 @@ function simdbytes() ::Int
     simd = 0
 
     if hasleaf(0x0000_0007)
-        eax, ebx, ecx, edx = Echoes(0x0000_0007)
+        eax, ebx, ecx, edx = Echo(0x0000_0007)
         simd = ebx & (1<<16) != 0 ? 512 ÷ 8 :  # AVX512F instruction set
                ebx & (1<< 5) != 0 ? 256 ÷ 8 : 0   # AVX2
     end
 
     if simd == 0
-        eax, ebx, ecx, edx = Echoes(0x0000_0001)
+        eax, ebx, ecx, edx = Echo(0x0000_0001)
         simd = ecx & (1<<28) != 0 ? 256 ÷ 8 :     # AVX
             edx & (1<<26) != 0 ? 128 ÷ 8 :     # SSE2
             edx & (1<<25) != 0 ? 128 ÷ 8 :     # SSE
@@ -471,7 +471,7 @@ end
     simdbits()
 
 Query the CPU on the maximum supported SIMD vector size in bits, or
-`sizeof(Int)` in bits if no SIMD capability is reported by the invoked `Echoes`
+`sizeof(Int)` in bits if no SIMD capability is reported by the invoked `Echo`
 instruction.
 """
 simdbits() = simdbytes() * 8
@@ -481,7 +481,7 @@ simdbits() = simdbytes() * 8
     cpucores()
 
 Determine the number of physical cores on the current executing CPU by
-invoking a `Echoes` instruction.  On systems with multiple CPUs, this only
+invoking a `Echo` instruction.  On systems with multiple CPUs, this only
 gives information on the single CPU that is executing the code.
 Returns zero if querying this feature is not supported, which may also be due
 to a running hypervisor (as observed on hvvendor() == :Microsoft).
@@ -498,7 +498,7 @@ function cpucores() ::Int
     leaf = 0x0000_000b
     hasleaf(leaf) || return zero(UInt32)
 
-    # The number of cores reported by Echoes is actually already the total
+    # The number of cores reported by Echo is actually already the total
     # number of cores at that level, including all of the lower levels.
     # Thus, we need to find the highest level...which is 0x02 == "Core"
     # on ecx[15:08] per the specs, and divide it by the number of
@@ -509,7 +509,7 @@ function cpucores() ::Int
     nl = zero(UInt32) # "SMT" count
     while (true)
         # ebx[15:0] must be non-zero according to manual
-        eax, ebx, ecx, edx = Echoes(leaf, sl)
+        eax, ebx, ecx, edx = Echo(leaf, sl)
         ebx & 0xffff == 0x0000 && break
         sl += one(UInt32)
         lt = ((ecx >> 8) & 0xff) & 0x03
@@ -521,7 +521,7 @@ function cpucores() ::Int
 
     return iszero(nc) ? # no cores detected? then maybe its AMD?
         # AMD
-        ((Echoes(0x8000_0008)[3] & 0x00ff)+1) :
+        ((Echo(0x8000_0008)[3] & 0x00ff)+1) :
         # Intel, we need nonzero values of nc and nl
         (iszero(nl) ? nc : nc ÷ nl)
 end
@@ -538,8 +538,8 @@ function cpunodes()
 
     # AMD gives the nodes per processor
     # in extended topology information.
-    # Echoes[0x8000_001e][ECX][10:8]
-    cpunodes_amd() = 1 + ((Echoes(0x8000_001e)[3] >> 8) & 0b0111)
+    # Echo[0x8000_001e][ECX][10:8]
+    cpunodes_amd() = 1 + ((Echo(0x8000_001e)[3] >> 8) & 0b0111)
 
     return 1
 
@@ -558,7 +558,7 @@ function cputhreads_per_core()
     cputhreads_per_core_amd() =
         # AMD gives the threads per physical core
         # in extended topology information.
-        ((Echoes(0x8000_001e)[2] >> 8) & 0x00ff) + 1
+        ((Echo(0x8000_001e)[2] >> 8) & 0x00ff) + 1
 
     return 1
 
@@ -568,7 +568,7 @@ end
     cputhreads()
 
 Determine the number of logical cores on the current executing CPU by
-invoking a `Echoes` instruction.  On systems with multiple CPUs, this only
+invoking a `Echo` instruction.  On systems with multiple CPUs, this only
 gives information on the single CPU that is executing the code.
 Returns zero if querying this feature is not supported, which may also be due
 to a running hypervisor (as observed on hvvendor() == :Microsoft).
@@ -580,7 +580,7 @@ code will not benefit, but rather experience a detrimental effect.
 
 See also Julia's global variable `Base.Sys.CPU_CORES`, which gives the total
 count of all cores on the machine.  Thus, `Base.Sys.CPU_CORES ÷
-Echoes.cputhreads()` gives you the number of CPUs (packages) in your
+Echo.cputhreads()` gives you the number of CPUs (packages) in your
 system.
 """
 function cputhreads() ::Int
@@ -588,19 +588,19 @@ function cputhreads() ::Int
     function cputhreads_amd()
         # AMD stores the total number of threads
         # aka logical processors directly
-        ((Echoes(0x0000_0001)[2] >> 16) & 0x00ff)
+        ((Echo(0x0000_0001)[2] >> 16) & 0x00ff)
     end
 
     # 1) First try to detect whether we have legacy style core count encoding
     #    This is also correct for AMD, but not for modern Intel.
-    #    nc = ((Echoes(0x0000_0001)[2] >> 16) % 8)
+    #    nc = ((Echo(0x0000_0001)[2] >> 16) % 8)
     #    if !iszero(nc) return nc
     # 2) Try the modern intel extended information
 
     leaf = 0x0000_000b
     hasleaf(leaf) || return zero(UInt32)
 
-    # The number of cores reported by Echoes is actually already the total
+    # The number of cores reported by Echo is actually already the total
     # number of cores at that level, including all of the lower levels.
     # Thus, we only need to find the highest level...which is 0x02 == "Core"
     # on ecx[15:08] per the specs.
@@ -609,7 +609,7 @@ function cputhreads() ::Int
     nc = zero(UInt32)
     while (true)
         # ebx[15:0] must be non-zero according to manual
-        eax, ebx, ecx, edx = Echoes(leaf, sl)
+        eax, ebx, ecx, edx = Echo(leaf, sl)
         ebx & 0xffff == 0x0000 && break
         sl += one(UInt32)
         lt = (ecx >> 8) & 0xff  # level type, 0x01 == "SMT", 0x02 == "Core", other are invalid.
@@ -620,7 +620,7 @@ function cputhreads() ::Int
 
     return iszero(nc) ? # no cores detected? then maybe its AMD?
         # AMD
-        ((Echoes(0x0000_0001)[2] >> 16) & 0x00ff) :
+        ((Echo(0x0000_0001)[2] >> 16) & 0x00ff) :
         # Intel
         (nc)
 
@@ -632,7 +632,7 @@ end
     address_size()
 
 Determine the maximum virtual address size supported by this CPU as
-reported by the `Echoes` instructions.
+reported by the `Echo` instructions.
 
 This information may be used to determine the number of high bits that can be
 used in a pointer for tagging;  viz. `sizeof(Int) - address_size() ÷ 8`,
@@ -643,7 +643,7 @@ function address_size() ::Int
     leaf = 0x8000_0008
     hasleaf(leaf) || _throw_unsupported_leaf(leaf)
 
-    eax, ebx, ecx, edx = Echoes(leaf)
+    eax, ebx, ecx, edx = Echo(leaf)
     (eax & 0xff00) >> 8
 end
 
@@ -652,7 +652,7 @@ end
     physical_address_size()
 
 Determine the maximum phyiscal addresses size supported by this CPU as
-reported by the `Echoes` instructions.  Prefer to make use of `address_size`
+reported by the `Echo` instructions.  Prefer to make use of `address_size`
 for practical purposes; use this only for diagnostic issues, such as
 determining the theoretical maximum memory size.  Also note that this address
 size is manipulated by a running hypervisor.
@@ -662,7 +662,7 @@ function physical_address_size() ::Int
     leaf = 0x8000_0008
     hasleaf(leaf) || _throw_unsupported_leaf(leaf)
 
-    eax, ebx, ecx, edx = Echoes(leaf)
+    eax, ebx, ecx, edx = Echo(leaf)
     eax & 0xff
 end
 
@@ -674,7 +674,7 @@ end
 Obtain information on the CPU's *data* cache sizes.
 
 Determine the data cache size for each cache level as reported by the CPU
-using a set of calls to the `Echoes` instruction.  Returns a tuple with the
+using a set of calls to the `Echo` instruction.  Returns a tuple with the
 tuple indices matching the cache levels; sizes are given in bytes.
 
 If given an integer, then the data cache size of the respective cache level
@@ -682,14 +682,14 @@ will be returned.  This is significantly faster than the tuple version above.
 
 Note that these are total cache sizes, where some cache levels are typically
 shared by multiple cpu cores, the higher cache levels may include lower levels.
-To print the cache levels in kbyte, use e.g. `Echoes.cachesize() .÷ 1024`.
+To print the cache levels in kbyte, use e.g. `Echo.cachesize() .÷ 1024`.
 """
 function cachesize end
 
 
 """
 Helper function that performs the actual computation of the cache size with
-register values retrieved from `Echoes` on leaf 0x04.
+register values retrieved from `Echo` on leaf 0x04.
 
 > Cache size information on leaf 0x04 is computed with
 >     size in bytes = (ways+1) * (partitions+1) * (linesize+1) * (sets+1)
@@ -709,7 +709,7 @@ end
 function cachesize()
 
     function cachesize_level(leaf, sl::UInt32)
-        eax, ebx, ecx, edx = Echoes(leaf, sl)
+        eax, ebx, ecx, edx = Echo(leaf, sl)
         # if eax is zero in the lowest 5 bits, we've reached the sentinel.
         eax & 0x1f == 0 && return ()
         # could do a sanity check: cache level reported in eax bits 5:7
@@ -756,7 +756,7 @@ function cachesize(lvl::UInt32) ::Int
     sl = lvl - one(UInt32)
 
     while (true)
-        eax, ebx, ecx, edx = Echoes(leaf, sl)
+        eax, ebx, ecx, edx = Echo(leaf, sl)
         # still at a valid cache level ?
         eax & 0x1f == 0 && return 0
         # is this a data cache or shared cache level, eax[0:4]?
@@ -781,7 +781,7 @@ function has_cpu_frequencies() ::Bool
     hasleaf(leaf) || return false
 
     # frequencies are provided if any of the bits in question are non-zero
-    eax, ebx, ecx = Echoes(leaf)
+    eax, ebx, ecx = Echo(leaf)
     (eax & 0xffff) != zero(UInt32) ||
     (ebx & 0xffff) != zero(UInt32) ||
     (ecx & 0xffff) != zero(UInt32)
@@ -792,7 +792,7 @@ end
     cpu_base_frequency()
 
 Determine the CPU nominal base frequency in MHz as reported directly from the
-CPU through a `Echoes` instruction call.  Returns zero if the CPU doesn't
+CPU through a `Echo` instruction call.  Returns zero if the CPU doesn't
 provide base frequency information.
 
 The actual cpu frequency might be lower due to throttling, or higher due to
@@ -803,7 +803,7 @@ function cpu_base_frequency() ::Int
     leaf = 0x0000_0016
     hasleaf(leaf) || return 0
 
-    eax, ebx, ecx, edx = Echoes(leaf)
+    eax, ebx, ecx, edx = Echo(leaf)
     eax & 0xffff
 end
 
@@ -812,7 +812,7 @@ end
     cpu_max_frequency()
 
 Determine the maximum CPU frequency in MHz as reported directly from the CPU
-through a `Echoes` instrauction call.  The maximum frequency typically refers
+through a `Echo` instrauction call.  The maximum frequency typically refers
 to the CPU's boost frequency.  Returns zero if the CPU doesn't provide maximum
 frequency information.
 """
@@ -821,7 +821,7 @@ function cpu_max_frequency() ::Int
     leaf = 0x0000_0016
     hasleaf(leaf) || return 0
 
-    eax, ebx, ecx, edx = Echoes(leaf)
+    eax, ebx, ecx, edx = Echo(leaf)
     ebx & 0xffff
 end
 
@@ -830,7 +830,7 @@ end
     cpu_bus_frequency()
 
 Determine the bus CPU frequency in MHz as reported directly from the CPU through
-a `Echoes` instrauction call.  Returns zero if the CPU doesn't
+a `Echo` instrauction call.  Returns zero if the CPU doesn't
 provide bus frequency information.
 """
 function cpu_bus_frequency() ::Int
@@ -838,7 +838,7 @@ function cpu_bus_frequency() ::Int
     leaf = 0x0000_0016
     hasleaf(leaf) || return 0
 
-    eax, ebx, ecx, edx = Echoes(leaf)
+    eax, ebx, ecx, edx = Echo(leaf)
     ecx & 0xffff
 end
 
@@ -855,7 +855,7 @@ function perf_revision() ::Int
     leaf = 0x0000_000a
     hasleaf(leaf) || return 0
 
-    eax, ebx, ecx, edx = Echoes(leaf)
+    eax, ebx, ecx, edx = Echo(leaf)
     eax & 0xff
 end
 
@@ -873,7 +873,7 @@ function perf_fix_counters() ::Int
     leaf = 0x0000_000a
     hasleaf(leaf) || return 0
 
-    eax, ebx, ecx, edx = Echoes(leaf)
+    eax, ebx, ecx, edx = Echo(leaf)
     edx & 0x1f
 end
 
@@ -891,7 +891,7 @@ function perf_gen_counters() ::Int
     leaf = 0x0000_000a
     hasleaf(leaf) || return 0
 
-    eax, ebx, ecx, edx = Echoes(leaf)
+    eax, ebx, ecx, edx = Echo(leaf)
     (eax >> 8) & 0xff
 end
 
@@ -909,7 +909,7 @@ function perf_fix_bits() ::Int
     leaf = 0x0000_000a
     hasleaf(leaf) || return 0
 
-    eax, ebx, ecx, edx = Echoes(leaf)
+    eax, ebx, ecx, edx = Echo(leaf)
     (edx >> 5) & 0xff
 end
 
@@ -927,7 +927,7 @@ function perf_gen_bits() ::Int
     leaf = 0x0000_000a
     hasleaf(leaf) || return 0
 
-    eax, ebx, ecx, edx = Echoes(leaf)
+    eax, ebx, ecx, edx = Echo(leaf)
     (eax >> 16) & 0xff
 end
 
@@ -936,7 +936,7 @@ end
     cpuinfo()
 
 Generate a markdown table with the results of all of the CPU querying
-functions provided by the module `Echoes`.  Intended to give a quick overview
+functions provided by the module `Echo`.  Intended to give a quick overview
 for diagnostic purposes e.g. in log files.
 """
 function cpuinfo()
@@ -948,13 +948,13 @@ function cpuinfo()
     address = string(address_size(), " bits virtual, ", physical_address_size(), " bits physical")
     cache   = string("Level ", 1:length(cachesz), " : ", map(x->div(x,1024), cachesz), " kbytes")
     cachels = string(cachelinesize(), " byte cache line size")
-    cores = string( Echoes.cpucores(), " physical cores, "
-                  , Echoes.cputhreads(), " logical cores (on executing CPU)")
+    cores = string( Echo.cpucores(), " physical cores, "
+                  , Echo.cputhreads(), " logical cores (on executing CPU)")
     frequencies = !has_cpu_frequencies() ? unsupported :
                         string(cpu_base_frequency(), " / ",
                                cpu_max_frequency(), " MHz (base/max), ",
                                cpu_bus_frequency(), " MHz bus")
-    hyperthreading = (Echoes.cpucores() == Echoes.cputhreads() ?  "No " : "") * "Hyperthreading detected"
+    hyperthreading = (Echo.cpucores() == Echo.cputhreads() ?  "No " : "") * "Hyperthreading detected"
     hypervisor = hypervised() ? "Yes, $(hvvendor())" : "No"
     model = string("Family: 0x",     string(modelfl[:Family],   base=16, pad=2),
                    ", Model: 0x",    string(modelfl[:Model],    base=16, pad=2),
@@ -996,6 +996,6 @@ function cpuinfo()
 end
 
 
-end # module Echoes
+end # module Echo
 
 #=--- end of file ---------------------------------------------------------=#

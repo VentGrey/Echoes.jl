@@ -1,15 +1,15 @@
-#=--- Echoes / cpufeature.jl -----------------------------------------------=#
+#=--- Echo / cpufeature.jl -----------------------------------------------=#
 
 #
 # Functions to query single bit feature flags.
 #
 
 """
-Tuple of Echoes leaf in eax, result register and bit, and a descriptive string.
+Tuple of Echo leaf in eax, result register and bit, and a descriptive string.
 
 This table is an edited combination of sources from [Wikipedia page on
-`Echoes`](https://en.wikipedia.org/wiki/Echoes),
-[sandpile.org](www.sandpile.org/x86/Echoes.htm), and of course Intel's 4670
+`Echo`](https://en.wikipedia.org/wiki/Echo),
+[sandpile.org](www.sandpile.org/x86/Echo.htm), and of course Intel's 4670
 page combined [Architectures Software Devleoper Manual](
 http://www.intel.com/content/www/us/en/architecture-and-technology/64-ia-32-architectures-software-developer-manual-325462.html).
 
@@ -376,19 +376,19 @@ const CpuFeatureDescription = Dict{Symbol, String}(
     cpufeature( feature::CpuFeature ) ::Bool
 
 Query the CPU whether it supports the given feature.  For fast checking
-provide directly the `CpuFeature` defined as a global const in `Echoes`.
+provide directly the `CpuFeature` defined as a global const in `Echo`.
 Explicitly typed `CpuFeature`s got by the same name as the corresponding
-symbols.  Valid symbols are available from `keys(Echoes.CpuFeatureDescription)`.
+symbols.  Valid symbols are available from `keys(Echo.CpuFeatureDescription)`.
 """
 function cpufeature end
 
 function cpufeature(feature::CpuFeature) ::Bool
-    @inbounds exx = getindex( Echoes(feature.leaf), feature.indx )
+    @inbounds exx = getindex( Echo(feature.leaf), feature.indx )
     (exx >> feature.shft) & 0x01 != 0x00
 end
 
 # Convenience overload to use symbol notatation
-cpufeature(feat::Symbol) = cpufeature( getfield(Echoes, feat) )
+cpufeature(feat::Symbol) = cpufeature( getfield(Echo, feat) )
 
 
 """
@@ -407,7 +407,7 @@ Get a list of symbols of all cpu supported features.  Might be extensive and
 not exactly useful other than for testing purposes.  Also, this implementation
 is not efficient since each feature is queried independently.
 """
-cpufeatures() = Symbol[f for f in keys(CpuFeatureDescription) if cpufeature(getfield(Echoes, f))] |> sort
+cpufeatures() = Symbol[f for f in keys(CpuFeatureDescription) if cpufeature(getfield(Echo, f))] |> sort
 
 
 """

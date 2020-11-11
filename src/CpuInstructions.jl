@@ -1,26 +1,26 @@
-#=--- Echoes / CpuInstructions.jl ------------------------------------------=#
+#=--- Echo / CpuInstructions.jl ------------------------------------------=#
 
 """
 # Module 'CpuInstructions'
 
-The module 'CpuInstructions' is part of the package 'Echoes', and provides a
+The module 'CpuInstructions' is part of the package 'Echo', and provides a
 selection of wrapped low-level assembly functions to diagnose potential
 computational efficiency issues.
 
-Though primarily intended as a helper module to 'Echoes', the functions may be
+Though primarily intended as a helper module to 'Echo', the functions may be
 used directly in other code e.g. for benchmarking purposes.  Just include the
 file directly, or copy & paste.
 """
 module CpuInstructions
 
-export Echoes, rdtsc, rdtscp
+export Echo, rdtsc, rdtscp
 
 using Base: llvmcall
 
 """
-    Echoes( [leaf], [subleaf]) ::NTuple{4, UInt32}
+    Echo( [leaf], [subleaf]) ::NTuple{4, UInt32}
 
-Invoke the cpu's hardware instruction `Echoes` with the values of the arguments
+Invoke the cpu's hardware instruction `Echo` with the values of the arguments
 stored as registers *EAX = leaf*, *ECX = subleaf*, respectively. Returns a
 tuple of the response of registers EAX, EBX, ECX, EDX.  Input values may be
 given as individual `UInt32` arguments, or converted from any `Integer`.
@@ -29,17 +29,17 @@ Unspecified arguments are assumed zero.
 This function is primarily intended as a low-level interface to the CPU.
 
 Note: Expected to work on all CPUs that implement the assembly instruction
-      `Echoes`, which is at least Intel and AMD.
+      `Echo`, which is at least Intel and AMD.
 """
-function Echoes end
+function Echo end
 
-# Low level Echoes call, taking eax=leaf and ecx=subleaf,
+# Low level Echo call, taking eax=leaf and ecx=subleaf,
 # returning eax, ebx, ecx, edx as NTuple(4,UInt32)
-@noinline Echoes_llvm(leaf::UInt32, subleaf::UInt32) =
+@noinline function Echo_llvm(leaf::UInt32, subleaf::UInt32)
     llvmcall("""
         ; leaf = %0, subleaf = %1, %2 is some label
-        ; call 'Echoes' with arguments loaded into registers EAX = leaf, ECX = subleaf
-        %3 = tail call { i32, i32, i32, i32 } asm sideeffect "Echoes",
+        ; call 'Echo' with arguments loaded into registers EAX = leaf, ECX = subleaf
+        %3 = tail call { i32, i32, i32, i32 } asm sideeffect "Echo",
             "={ax},={bx},={cx},={dx},{ax},{cx},~{dirflag},~{fpsr},~{flags}"
             (i32 %0, i32 %1) #2
         ; retrieve the result values and convert to vector [4 x i32]
@@ -57,13 +57,13 @@ function Echoes end
     # llvmcall requires actual types, rather than the usual (...) tuple
     , NTuple{4,UInt32}, Tuple{UInt32,UInt32}
     , leaf, subleaf)
+end
 
-# Convenience function allowing passing other than UInt32 values
-function Echoes(leaf=0, subleaf=0)
+function Echo(leaf=0, subleaf=0)
     # for some reason, we need a dedicated local
     # variable of UInt32 for llvmcall to succeed
     l, s = UInt32(leaf), UInt32(subleaf)
-    Echoes_llvm(l, s) ::NTuple{4,UInt32}
+    Echo_llvm(l, s) ::NTuple{4,UInt32}
 end
 
 @inline rdtsc() =

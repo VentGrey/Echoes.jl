@@ -2,3 +2,7 @@ name = "Echoes"
 uuid = "24a46152-1fd8-4941-b4ae-c5cfc58b323c"
 authors = ["VentGrey <omarpurataf@gmail.com>"]
 version = "0.1.0"
+
+[deps]
+Markdown = "d6f4376e-aef5-505a-96c1-9c027394607a"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
